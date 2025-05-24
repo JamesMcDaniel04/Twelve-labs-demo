@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Your Milk Video - Got Milk?</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .upload-container {
+            max-width: 700px;
+            margin: 50px auto;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            background: white;
+        }
+        .upload-type-selector {
+            display: flex;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 5px;
+            margin-bottom: 30px;
+        }
+        .upload-type-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .upload-type-btn.active {
+            background: #0d6efd;
+            color: white;
+            box-shadow: 0 2px 8px rgba(13,110,253,0.3);
+        }
+        .upload-section {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+        .upload-section.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .drag-drop-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .drag-drop-area:hover, .drag-drop-area.dragover {
+            border-color: #0d6efd;
+            background: #f8f9ff;
+        }
+        .url-input-group {
+            position: relative;
+        }
+        .url-validation {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .result-card {
+            display: none;
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 30px;
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .supported-platforms {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .platform-badge {
+            display: inline-block;
+            background: #1976d2;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin: 2px;
+        }
+        .processing-spinner {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">🥛 Got Milk?</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link active" href="/upload">Upload</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="upload-container">
+            <div class="text-center mb-4">
+                <h2>📤 Share Your Milk Video</h2>
+                <p class="text-muted">Upload a file or share a URL from your favorite platform!</p>
+            </div>
+
+            <!-- Upload Type Selector -->
+            <div class="upload-type-selector">
+                <button type="button" class="upload-type-btn active" onclick="switchUploadType('file')">
+                    📁 Upload File
+                </button>
+                <button type="button" class="upload-type-btn" onclick="switchUploadType('url')">
+                    🔗 Share URL
+                </button>
+            </div>
+
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="hidden" id="upload_type" name="upload_type" value="file">
+                
+                <!-- File Upload Section -->
+                <div id="fileSection" class="upload-section active">
+                    <div class="drag-drop-area" id="dragDropArea">
+                        <div class="mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-cloud-arrow-up text-primary" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M7.646 5.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708l2-2z"/>
+                                <path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383zm.653.757c-.757.653-1.153 1.44-1.153 2.056v.448l-.445.049C2.064 6.805 1 7.952 1 9.318 1 10.785 2.23 12 3.781 12h8.906C13.98 12 15 10.988 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3a4.53 4.53 0 0 0-2.941 1.1z"/>
+                            </svg>
+                        </div>
+                        <h5>Drop your video here or click to browse</h5>
+                        <p class="text-muted mb-0">Supports MP4, MOV, AVI, WEBM (max 100MB)</p>
+                        <input type="file" id="video" name="video" accept="video/*" style="display: none;">
+                    </div>
+                </div>
+
+                <!-- URL Upload Section -->
+                <div id="urlSection" class="upload-section">
+                    <div class="mb-3">
+                        <label for="video_url" class="form-label">Video URL:</label>
+                        <div class="url-input-group">
+                            <input type="url" class="form-control" id="video_url" name="video_url" 
+                                   placeholder="https://youtube.com/watch?v=... or direct video link">
+                            <div class="url-validation" id="urlValidation"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="supported-platforms">
+                        <h6 class="mb-2">✅ Supported Platforms:</h6>
+                        <span class="platform-badge">YouTube</span>
+                        <span class="platform-badge">TikTok</span>
+                        <span class="platform-badge">Instagram</span>
+                        <span class="platform-badge">Vimeo</span>
+                        <span class="platform-badge">Twitter/X</span>
+                        <span class="platform-badge">Direct Links</span>
+                        <p class="text-muted mt-2 mb-0">
+                            <small>💡 Tip: Right-click on a video and copy the link, or share the page URL</small>
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Common Fields -->
+                <div class="mb-3 mt-4">
+                    <label for="hashtags" class="form-label">Hashtags:</label>
+                    <input type="text" class="form-control" id="hashtags" name="hashtags" 
+                           placeholder="#GotMilk #MilkMob" value="#GotMilk">
+                    <div class="form-text">Add campaign hashtags to increase validation score</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description (optional):</label>
+                    <textarea class="form-control" id="description" rows="3" 
+                              placeholder="Tell us about your milk moment..."></textarea>
+                </div>
+                
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary btn-lg px-4" id="submitBtn">
+                        🚀 Process & Join Milk Mob
+                    </button>
+                    <div class="processing-spinner mt-3" id="processingSpinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                        <p class="mt-2">Analyzing your video... This may take a moment ⏳</p>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Success Result -->
+            <div id="successResult" class="result-card bg-success bg-opacity-10 border border-success">
+                <div class="text-center">
+                    <h4 class="text-success">✅ Success!</h4>
+                    <p id="successMessage">Your video has been validated!</p>
+                    <div class="mt-3">
+                        <span class="badge bg-success" id="confidenceBadge">Confidence: 85%</span>
+                        <span class="badge bg-info ms-2" id="sourceBadge">Source: Upload</span>
+                    </div>
+                    <div class="mt-3">
+                        <strong>Welcome to the <span id="mobName">Milk Mob</span>!</strong>
+                    </div>
+                    <a href="#" id="exploreMobLink" class="btn btn-success mt-3">Explore Your Mob</a>
+                </div>
+            </div>
+
+            <!-- Error Result -->
+            <div id="errorResult" class="result-card bg-danger bg-opacity-10 border border-danger">
+                <div class="text-center">
+                    <h4 class="text-danger">❌ Validation Failed</h4>
+                    <p id="errorMessage">Something went wrong. Please try again.</p>
+                    <button class="btn btn-outline-danger mt-2" onclick="resetForm()">Try Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUploadType = 'file';
+        
+        // Upload type switching
+        function switchUploadType(type) {
+            currentUploadType = type;
+            document.getElementById('upload_type').value = type;
+            
+            // Update buttons
+            document.querySelectorAll('.upload-type-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update sections
+            document.querySelectorAll('.upload-section').forEach(section => section.classList.remove('active'));
+            document.getElementById(type + 'Section').classList.add('active');
+            
+            resetForm();
+        }
+        
+        // File upload handling
+        const dragDropArea = document.getElementById('dragDropArea');
+        const fileInput = document.getElementById('video');
+        
+        dragDropArea.addEventListener('click', () => fileInput.click());
+        
+        dragDropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragDropArea.classList.add('dragover');
+        });
+        
+        dragDropArea.addEventListener('dragleave', () => {
+            dragDropArea.classList.remove('dragover');
+        });
+        
+        dragDropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragDropArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                updateFileDisplay(files[0].name);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                updateFileDisplay(e.target.files[0].name);
+            }
+        });
+        
+        function updateFileDisplay(filename) {
+            dragDropArea.innerHTML = `
+                <div class="text-success">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-check-circle" viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                        <path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05z"/>
+                    </svg>
+                    <h5 class="mt-2">File Selected</h5>
+                    <p class="mb-0">${filename}</p>
+                </div>
+            `;
+        }
+        
+        // URL validation
+        const urlInput = document.getElementById('video_url');
+        const urlValidation = document.getElementById('urlValidation');
+        
+        urlInput.addEventListener('input', debounce(validateUrl, 500));
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        async function validateUrl() {
+            const url = urlInput.value.trim();
+            if (!url) {
+                urlValidation.innerHTML = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/validate-url?url=${encodeURIComponent(url)}`);
+                const result = await response.json();
+                
+                if (result.valid) {
+                    urlValidation.innerHTML = '<span class="text-success">✅</span>';
+                } else {
+                    urlValidation.innerHTML = '<span class="text-danger">❌</span>';
+                }
+            } catch (error) {
+                urlValidation.innerHTML = '<span class="text-warning">⚠️</span>';
+            }
+        }
+        
+        // Form submission
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('processingSpinner');
+            
+            // Show processing state
+            submitBtn.disabled = true;
+            spinner.style.display = 'block';
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSuccess(result);
+                } else {
+                    showError(result.error || 'Upload failed');
+                }
+            } catch (error) {
+                showError('Network error. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        });
+        
+        function showSuccess(result) {
+            document.getElementById('successMessage').textContent = result.reason || 'Your video has been validated!';
+            document.getElementById('mobName').textContent = result.mob_name || 'Milk Mob';
+            document.getElementById('exploreMobLink').href = `/explore/${result.mob_id}`;
+            document.getElementById('confidenceBadge').textContent = `Confidence: ${Math.round(result.confidence * 100)}%`;
+            document.getElementById('sourceBadge').textContent = `Source: ${result.source || 'Upload'}`;
+            
+            // Enhanced success display with mob info
+            const successDiv = document.getElementById('successResult');
+            successDiv.innerHTML = `
+                <div class="text-center">
+                    <div style="font-size: 3rem; margin-bottom: 15px;">${result.mob_icon || '🥛'}</div>
+                    <h4 class="text-success">✅ Success!</h4>
+                    <p>${result.reason || 'Your video has been validated!'}</p>
+                    <div class="mt-3">
+                        <span class="badge bg-success">${Math.round(result.confidence * 100)}% Confidence</span>
+                        <span class="badge bg-info ms-2">Source: ${result.source || 'Upload'}</span>
+                    </div>
+                    <div class="mt-3 p-3 rounded" style="background: ${result.mob_color || '#f8f9fa'}22; border: 1px solid ${result.mob_color || '#dee2e6'}44;">
+                        <h5><strong>Welcome to ${result.mob_name || 'Milk Enthusiasts'}!</strong></h5>
+                        <p class="mb-2">${result.mob_description || 'A community of milk lovers'}</p>
+                        ${result.mob_match_reasons ? `<small class="text-muted">Matched based on: ${result.mob_match_reasons.join(', ')}</small>` : ''}
+                    </div>
+                    <a href="/explore/${result.mob_id}" class="btn btn-success mt-3">
+                        ${result.mob_icon || '🥛'} Explore Your Mob
+                    </a>
+                </div>
+            `;
+            
+            document.getElementById('successResult').style.display = 'block';
+            document.getElementById('errorResult').style.display = 'none';
+        }
+        
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorResult').style.display = 'block';
+            document.getElementById('successResult').style.display = 'none';
+        }
+        
+        function resetForm() {
+            document.getElementById('uploadForm').reset();
+            document.getElementById('successResult').style.display = 'none';
+            document.getElementById('errorResult').style.display = 'none';
+            urlValidation.innerHTML = '';
+            
+            // Reset file display
+            dragDropArea.innerHTML = `
+                <div class="mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-cloud-arrow-up text-primary" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M7.646 5.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708l2-2z"/>
+                        <path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383zm.653.757c-.757.653-1.153 1.44-1.153 2.056v.448l-.445.049C2.064 6.805 1 7.952 1 9.318 1 10.785 2.23 12 3.781 12h8.906C13.98 12 15 10.988 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3a4.53 4.53 0 0 0-2.941 1.1z"/>
+                    </svg>
+                </div>
+                <h5>Drop your video here or click to browse</h5>
+                <p class="text-muted mb-0">Supports MP4, MOV, AVI, WEBM (max 100MB)</p>
+            `;
+        }
+        
+        // Set default hashtag
+        document.getElementById('hashtags').value = '#GotMilk';
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

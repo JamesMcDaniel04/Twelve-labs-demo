@@ -1,0 +1,275 @@
+<!-- templates/explore.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ mob_info.name }} - Milk Mob</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .mob-header {
+            background: linear-gradient(135deg, {{ mob_info.color }}22, {{ mob_info.color }}44);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .mob-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+        .video-card {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .video-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .confidence-badge {
+            background: {{ mob_info.color }};
+            color: white;
+        }
+        .mob-stats {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .other-mobs {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .mob-preview {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: background 0.3s;
+            text-decoration: none;
+            color: inherit;
+        }
+        .mob-preview:hover {
+            background: #f8f9fa;
+            text-decoration: none;
+            color: inherit;
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        .activity-timeline {
+            border-left: 3px solid {{ mob_info.color }};
+            padding-left: 20px;
+            margin-left: 20px;
+        }
+        .timeline-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">🥛 Got Milk?</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/upload">Upload</a>
+                <a class="nav-link active" href="#">Explore</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Mob Header -->
+        <div class="mob-header">
+            <div class="mob-icon">{{ mob_info.icon }}</div>
+            <h1>{{ mob_info.name }}</h1>
+            <p class="lead mb-0">{{ mob_info.description }}</p>
+        </div>
+
+        <div class="row">
+            <!-- Main Content -->
+            <div class="col-lg-8">
+                <!-- Mob Stats -->
+                <div class="mob-stats">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h3 class="mb-0">{{ mob_info.member_count }}</h3>
+                            <small class="text-muted">Members</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="mb-0">{{ videos|length }}</h3>
+                            <small class="text-muted">Videos</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="mb-0">{{ mob_info.avg_confidence }}%</h3>
+                            <small class="text-muted">Avg Match</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Videos Grid -->
+                <h3 class="mb-3">Recent Videos</h3>
+                <div class="row">
+                    {% for video in videos %}
+                    <div class="col-md-6">
+                        <div class="card video-card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-start mb-2">
+                                    <div class="user-avatar">
+                                        {{ video.user[0] if video.user else 'U' }}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="card-title mb-1">{{ video.title }}</h6>
+                                        <small class="text-muted">by {{ video.user or 'Anonymous' }}</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        ⏱️ {{ video.duration }}s
+                                    </small>
+                                    <span class="badge confidence-badge">
+                                        {{ (video.confidence * 100)|round }}% match
+                                    </span>
+                                </div>
+                                
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        ▶️ Watch
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary ms-1">
+                                        👍 Like
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="mt-4">
+                    <h4>Recent Activity</h4>
+                    <div class="activity-timeline">
+                        <div class="timeline-item">
+                            <strong>MukbangQueen</strong> joined the mob
+                            <small class="text-muted d-block">2 minutes ago</small>
+                        </div>
+                        <div class="timeline-item">
+                            <strong>You</strong> uploaded "{{ latest_video_title or 'Amazing milk video' }}"
+                            <small class="text-muted d-block">Just now</small>
+                        </div>
+                        <div class="timeline-item">
+                            <strong>ASMRAngel</strong> got 50 likes on their video
+                            <small class="text-muted d-block">5 minutes ago</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Join Actions -->
+                <div class="card mb-4">
+                    <div class="card-body text-center">
+                        <h5>You're now part of this mob!</h5>
+                        <p class="text-muted">Connect with other {{ mob_info.name }} members</p>
+                        <button class="btn btn-primary mb-2">
+                            🎥 Upload Another Video
+                        </button>
+                        <button class="btn btn-outline-primary">
+                            📱 Share This Mob
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Other Mobs -->
+                <div class="other-mobs">
+                    <h5 class="mb-3">Discover Other Mobs</h5>
+                    {% for mob_key, mob_data in other_mobs.items() %}
+                    <a href="/explore/{{ mob_data.id }}" class="mob-preview">
+                        <div style="font-size: 1.5rem; margin-right: 15px;">{{ mob_data.icon }}</div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">{{ mob_data.name }}</div>
+                            <small class="text-muted">{{ mob_data.member_count or 12 }} members</small>
+                        </div>
+                        <small class="text-muted">→</small>
+                    </a>
+                    {% endfor %}
+                </div>
+
+                <!-- Trending Topics -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">🔥 Trending in {{ mob_info.name }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <span class="badge bg-light text-dark me-1">#milkchallenge</span>
+                            <small class="text-muted">124 videos</small>
+                        </div>
+                        <div class="mb-2">
+                            <span class="badge bg-light text-dark me-1">#{{ mob_info.name.lower().replace(' ', '') }}</span>
+                            <small class="text-muted">89 videos</small>
+                        </div>
+                        <div class="mb-2">
+                            <span class="badge bg-light text-dark me-1">#gotmilk2025</span>
+                            <small class="text-muted">67 videos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload More Modal Trigger -->
+    <div class="position-fixed bottom-0 end-0 p-4">
+        <a href="/upload" class="btn btn-primary btn-lg rounded-circle" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 1.5rem;">+</span>
+        </a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Add some interactivity
+        document.querySelectorAll('.video-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // In a real app, this would open video player
+                console.log('Playing video:', this.querySelector('.card-title').textContent);
+            });
+        });
+
+        // Simulate real-time updates
+        setInterval(() => {
+            const memberCount = document.querySelector('.mob-stats h3');
+            if (memberCount) {
+                const current = parseInt(memberCount.textContent);
+                if (Math.random() > 0.9) { // 10% chance every 5 seconds
+                    memberCount.textContent = current + 1;
+                }
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1356 @@
+<!-- templates/video_queue.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Processing Queue - Got Milk Campaign</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .metric-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .api-status {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .real-time-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #28a745;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* ===== VIDEO PROCESSING QUEUE STYLES ===== */
+        .video-queue-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .video-card {
+            position: relative;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .video-card.queued {
+            border-color: #fbbf24;
+            background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+        }
+
+        .video-card.processing {
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+        }
+
+        .video-card.approved {
+            border-color: #22c55e;
+            background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+        }
+
+        .video-card.rejected {
+            border-color: #ef4444;
+            background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+        }
+
+        .video-status-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .status-queued { background: #fbbf24; color: white; }
+        .status-processing { background: #3b82f6; color: white; }
+        .status-approved { background: #22c55e; color: white; }
+        .status-rejected { background: #ef4444; color: white; }
+
+        .processing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e5e7eb;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: #22c55e;
+            transition: width 0.3s ease;
+        }
+
+        .processing-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            flex-wrap: wrap;
+        }
+
+        .btn-process {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-process:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .btn-process:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .process-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.5);
+            transition: width 0.3s ease;
+        }
+
+        .results-summary {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+
+        .results-summary.success {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        /* Video thumbnail and info styles */
+        .video-thumbnail {
+            position: relative;
+            width: 120px;
+            height: 80px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .play-button {
+            width: 30px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+
+        .video-duration {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        .video-info {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            flex: 1;
+        }
+
+        .video-details {
+            flex: 1;
+        }
+
+        .video-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin: 0 0 4px 0;
+            line-height: 1.3;
+        }
+
+        .video-meta {
+            color: #6b7280;
+            font-size: 12px;
+            margin: 0 0 8px 0;
+        }
+
+        .video-hashtags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .hashtag {
+            background: #e5e7eb;
+            color: #374151;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .hashtag.campaign-tag {
+            background: #fbbf24;
+            color: white;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #6366f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        /* Queue-specific layouts */
+        .video-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .queue-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .queue-metric {
+            text-align: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .queue-metric-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .queue-metric-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+
+        /* Filter and action buttons */
+        .queue-filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .filter-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .filter-btn.active:hover {
+            background: #5a67d8;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .queue-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .processing-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .processing-controls > div {
+                text-align: center;
+            }
+        }
+
+        /* Context menu styles */
+        .context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 10000;
+            padding: 5px 0;
+            min-width: 150px;
+        }
+
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        .context-menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .context-menu-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Progress indicator styles */
+        .progress-custom {
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        /* Notification styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1>🔍 Video Processing Queue</h1>
+                    <p class="mb-0">Campaign video analysis powered by Twelve Labs AI</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="api-status">
+                        <span class="real-time-indicator"></span>
+                        <strong>Twelve Labs API Ready</strong>
+                        <div class="small">Queue: <span id="queueCount">8</span> videos pending</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-light bg-light border-bottom">
+        <div class="container">
+            <div class="d-flex gap-3">
+                <a href="/campaign-dashboard" class="btn btn-outline-primary">📊 Back to Dashboard</a>
+                <a href="/social-feed" class="btn btn-outline-primary">📺 Social Feed</a>
+                <a href="/upload" class="btn btn-outline-primary">🥛 Join Campaign</a>
+                <button class="btn btn-success" onclick="simulateNewVideo()">⚡ Add Test Video</button>
+                <button class="btn btn-info" onclick="refreshQueue()">🔄 Refresh Queue</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Queue Overview Metrics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-number text-warning" id="queuedCount">8</div>
+                    <div class="metric-label">Videos Queued</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-number text-primary" id="processingCount">0</div>
+                    <div class="metric-label">Processing</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-number text-success" id="approvedCount">0</div>
+                    <div class="metric-label">Approved</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-number text-danger" id="rejectedCount">0</div>
+                    <div class="metric-label">Rejected</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Processing Queue -->
+        <div class="video-queue-container">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>🎯 Campaign Detection Queue</h4>
+                <div class="text-muted small">
+                    Detecting: #gotmilk, #milkmob, #dairylove
+                </div>
+            </div>
+            
+            <p class="text-muted mb-4">
+                These videos were detected with campaign-related hashtags and are queued for Twelve Labs content analysis.
+                Videos are analyzed for milk content, brand safety, and campaign relevance.
+            </p>
+
+            <!-- Filter Controls -->
+            <div class="queue-filters">
+                <button class="filter-btn active" onclick="filterVideos('all')">All Videos</button>
+                <button class="filter-btn" onclick="filterVideos('queued')">Queued (8)</button>
+                <button class="filter-btn" onclick="filterVideos('processing')">Processing (0)</button>
+                <button class="filter-btn" onclick="filterVideos('approved')">Approved (0)</button>
+                <button class="filter-btn" onclick="filterVideos('rejected')">Rejected (0)</button>
+            </div>
+
+            <!-- Video Grid -->
+            <div class="video-grid" id="videoQueue">
+                <!-- Videos will be populated by JavaScript -->
+            </div>
+
+            <!-- Processing Controls -->
+            <div class="processing-controls">
+                <button class="btn-process" id="processBtn" onclick="startProcessing()">
+                    <span id="btnText">🚀 Process Queue with Twelve Labs</span>
+                    <div class="process-progress" id="processProgress"></div>
+                </button>
+                
+                <div class="text-muted">
+                    <small>
+                        <strong>Analysis includes:</strong> Video content, milk detection, scene understanding, brand safety
+                    </small>
+                </div>
+                
+                <button class="btn btn-outline-secondary btn-sm" onclick="clearProcessed()">
+                    🗑️ Clear Processed
+                </button>
+                
+                <button class="btn btn-outline-warning btn-sm" onclick="retryFailed()">
+                    🔄 Retry Failed
+                </button>
+                
+                <div class="ms-auto">
+                    <small class="text-muted">
+                        Est. time: ~30 seconds | API cost: ~$0.50
+                    </small>
+                </div>
+            </div>
+
+            <!-- Results Summary -->
+            <div id="resultsSummary" style="display: none;"></div>
+        </div>
+
+        <!-- Processing Statistics -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="video-queue-container">
+                    <h5>📈 Processing Statistics</h5>
+                    <canvas id="processingChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="video-queue-container">
+                    <h5>⚡ API Performance</h5>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Average Processing Time</span>
+                            <strong class="text-success">2.3s</strong>
+                        </div>
+                        <div class="progress progress-custom">
+                            <div class="progress-bar bg-success" style="width: 85%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Success Rate</span>
+                            <strong class="text-info">94.7%</strong>
+                        </div>
+                        <div class="progress progress-custom">
+                            <div class="progress-bar bg-info" style="width: 94.7%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Queue Throughput</span>
+                            <strong class="text-warning">156/hour</strong>
+                        </div>
+                        <div class="progress progress-custom">
+                            <div class="progress-bar bg-warning" style="width: 78%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container for Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Sample video data for processing queue
+        const queuedVideos = [
+            {
+                id: 1,
+                title: "Morning milk routine with oats! 🥛",
+                user: "HealthyMama",
+                avatar: "H",
+                views: "45K",
+                time: "2 hours ago",
+                duration: "0:32",
+                hashtags: ["#gotmilk", "#morning", "#healthy", "#breakfast"],
+                status: "queued",
+                confidence: 0
+            },
+            {
+                id: 2,
+                title: "Epic milk chugging challenge 💪",
+                user: "FitnessKing",
+                avatar: "F",
+                views: "128K",
+                time: "4 hours ago",
+                duration: "0:18",
+                hashtags: ["#gotmilk", "#challenge", "#fitness"],
+                status: "queued",
+                confidence: 0
+            },
+            {
+                id: 3,
+                title: "Aesthetic milk photography tips ✨",
+                user: "ArtisticAnna",
+                avatar: "A",
+                views: "67K",
+                time: "5 hours ago",
+                duration: "1:45",
+                hashtags: ["#gotmilk", "#aesthetic", "#photography"],
+                status: "queued",
+                confidence: 0
+            },
+            {
+                id: 4,
+                title: "Trying different milk types ASMR",
+                user: "ASMRQueen",
+                avatar: "A",
+                views: "234K",
+                time: "6 hours ago",
+                duration: "3:12",
+                hashtags: ["#gotmilk", "#asmr", "#milktasting"],
+                status: "queued",
+                confidence: 0
+            },
+            {
+                id: 5,
+                title: "Got milk? Yes I do! 🥛",
+                user: "MilkLover23",
+                avatar: "M",
+                views: "89K",
+                time: "8 hours ago",
+                duration: "0:24",
+                hashtags: ["#gotmilk", "#milklover", "#dairy"],
+                status: "queued",
+                confidence: 0
+            },
+            {
+                id: 6,
+                title: "Cereal and milk perfect combo",
+                user: "FoodieLife",
+                avatar: "F",
+                views: "156K",
+                time: "10 hours ago",
+                duration: "0:41",
+                hashtags: ["#gotmilk", "#cereal", "#breakfast"],
+                status: "queued",
+                confidence: 0
+            },
+            {
+                id: 7,
+                title: "Milk mustache selfie trend!",
+                user: "TrendSetter",
+                avatar: "T",
+                views: "78K",
+                time: "12 hours ago",
+                duration: "0:15",
+                hashtags: ["#gotmilk", "#selfie", "#trend"],
+                status: "queued",
+                confidence: 0
+            },
+            {
+                id: 8,
+                title: "Gaming setup with milk break 🎮",
+                user: "ProGamer",
+                avatar: "P",
+                views: "92K",
+                time: "14 hours ago",
+                duration: "0:28",
+                hashtags: ["#gotmilk", "#gaming", "#break"],
+                status: "queued",
+                confidence: 0
+            }
+        ];
+
+        let processedVideos = [...queuedVideos];
+        let isProcessing = false;
+        let currentFilter = 'all';
+        let processingChart;
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            renderVideoQueue();
+            updateMetrics();
+            initializeChart();
+            
+            // Auto-refresh queue status
+            setInterval(updateMetrics, 10000);
+        });
+
+        function renderVideoQueue() {
+            const container = document.getElementById('videoQueue');
+            container.innerHTML = '';
+
+            const filteredVideos = currentFilter === 'all' 
+                ? processedVideos 
+                : processedVideos.filter(v => v.status === currentFilter);
+
+            if (filteredVideos.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <h5>No videos to display</h5>
+                        <p>No videos match the current filter: ${currentFilter}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredVideos.forEach(video => {
+                const videoCard = createVideoCard(video);
+                container.appendChild(videoCard);
+            });
+        }
+
+        function createVideoCard(video) {
+            const card = document.createElement('div');
+            card.className = `video-card ${video.status}`;
+            card.id = `video-${video.id}`;
+
+            const statusBadges = {
+                queued: { class: 'status-queued', text: 'Queued' },
+                processing: { class: 'status-processing', text: 'Processing' },
+                approved: { class: 'status-approved', text: 'Approved' },
+                rejected: { class: 'status-rejected', text: 'Rejected' }
+            };
+
+            const badge = statusBadges[video.status];
+            
+            card.innerHTML = `
+                <div class="video-status-badge ${badge.class}">${badge.text}</div>
+                
+                <div class="video-info">
+                    <div class="video-thumbnail">
+                        <div class="play-button">▶</div>
+                        <div class="video-duration">${video.duration}</div>
+                    </div>
+                    
+                    <div class="video-details">
+                        <h3 class="video-title">${video.title}</h3>
+                        <p class="video-meta">${video.user} • ${video.views} views • ${video.time}</p>
+                        
+                        <div class="video-hashtags">
+                            ${video.hashtags.map(tag => {
+                                const isCampaign = ['#gotmilk', '#milkmob', '#dairylove'].includes(tag.toLowerCase());
+                                return `<span class="hashtag ${isCampaign ? 'campaign-tag' : ''}">${tag}</span>`;
+                            }).join('')}
+                        </div>
+                        
+                        ${video.status === 'processing' ? `
+                            <div class="processing-indicator">
+                                <div class="spinner"></div>
+                                <span class="small text-muted">Analyzing with Twelve Labs...</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${video.confidence > 0 ? `
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: ${video.confidence * 100}%"></div>
+                            </div>
+                            <div class="small text-muted mt-1">
+                                Campaign confidence: ${Math.round(video.confidence * 100)}%
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="user-avatar">${video.avatar}</div>
+                </div>
+            `;
+            
+            // Add context menu
+            card.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showContextMenu(e, video);
+            });
+            
+            return card;
+        }
+
+        function updateMetrics() {
+            const counts = {
+                queued: processedVideos.filter(v => v.status === 'queued').length,
+                processing: processedVideos.filter(v => v.status === 'processing').length,
+                approved: processedVideos.filter(v => v.status === 'approved').length,
+                rejected: processedVideos.filter(v => v.status === 'rejected').length
+            };
+
+            document.getElementById('queuedCount').textContent = counts.queued;
+            document.getElementById('processingCount').textContent = counts.processing;
+            document.getElementById('approvedCount').textContent = counts.approved;
+            document.getElementById('rejectedCount').textContent = counts.rejected;
+            document.getElementById('queueCount').textContent = counts.queued;
+
+            // Update filter button counts
+            document.querySelector('[onclick="filterVideos(\'queued\')"]').textContent = `Queued (${counts.queued})`;
+            document.querySelector('[onclick="filterVideos(\'processing\')"]').textContent = `Processing (${counts.processing})`;
+            document.querySelector('[onclick="filterVideos(\'approved\')"]').textContent = `Approved (${counts.approved})`;
+            document.querySelector('[onclick="filterVideos(\'rejected\')"]').textContent = `Rejected (${counts.rejected})`;
+
+            // Update chart if it exists
+            if (processingChart) {
+                processingChart.data.datasets[0].data = [counts.queued, counts.processing, counts.approved, counts.rejected];
+                processingChart.update();
+            }
+        }
+
+        function filterVideos(status) {
+            currentFilter = status;
+            
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            renderVideoQueue();
+        }
+
+        async function startProcessing() {
+            if (isProcessing) return;
+            
+            const button = document.getElementById('processBtn');
+            const buttonText = document.getElementById('btnText');
+            const progressBar = document.getElementById('processProgress');
+            
+            isProcessing = true;
+            button.disabled = true;
+            buttonText.textContent = '🔄 Processing Videos...';
+            
+            const queuedVideos = processedVideos.filter(v => v.status === 'queued');
+            const totalVideos = queuedVideos.length;
+            
+            if (totalVideos === 0) {
+                showToast('Queue Empty', 'No videos to process', 'info');
+                resetProcessButton();
+                return;
+            }
+
+            try {
+                for (let i = 0; i < queuedVideos.length; i++) {
+                    const video = queuedVideos[i];
+                    const progress = ((i + 1) / totalVideos) * 100;
+                    
+                    // Update progress
+                    progressBar.style.width = `${progress}%`;
+                    buttonText.textContent = `🔄 Processing ${i + 1}/${totalVideos}...`;
+                    
+                    // Update video status to processing
+                    video.status = 'processing';
+                    updateVideoCard(video);
+                    updateMetrics();
+                    
+                    // Simulate API call to Twelve Labs
+                    await simulateVideoProcessing(video);
+                    
+                    // Determine result (85% approval rate)
+                    const isApproved = Math.random() > 0.15;
+                    video.status = isApproved ? 'approved' : 'rejected';
+                    video.confidence = isApproved ? Math.random() * 0.3 + 0.7 : Math.random() * 0.4 + 0.1;
+                    
+                    updateVideoCard(video);
+                    updateMetrics();
+
+                    // Small delay between videos
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }
+
+                // Show results summary
+                showProcessingResults();
+                
+            } catch (error) {
+                console.error('Processing error:', error);
+                showToast('Processing Error', 'Failed to process some videos', 'danger');
+            } finally {
+                resetProcessButton();
+            }
+        }
+
+        function updateVideoCard(video) {
+            const card = document.getElementById(`video-${video.id}`);
+            if (card) {
+                const newCard = createVideoCard(video);
+                card.replaceWith(newCard);
+            }
+        }
+
+        async function simulateVideoProcessing(video) {
+            // Simulate Twelve Labs API call
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve({
+                        video_id: video.id,
+                        analysis: {
+                            milk_detected: Math.random() > 0.2,
+                            confidence: Math.random(),
+                            scenes: ['milk_pouring', 'drinking', 'kitchen'],
+                            objects: ['glass', 'milk', 'person'],
+                            text: ['got milk', 'dairy', 'healthy']
+                        }
+                    });
+                }, Math.random() * 2000 + 1000);
+            });
+        }
+
+        function showProcessingResults() {
+            const approved = processedVideos.filter(v => v.status === 'approved').length;
+            const rejected = processedVideos.filter(v => v.status === 'rejected').length;
+            const total = approved + rejected;
+            
+            const summaryElement = document.getElementById('resultsSummary');
+            summaryElement.className = 'results-summary success';
+            summaryElement.innerHTML = `
+                <h5>✅ Processing Complete!</h5>
+                <p><strong>${approved}/${total}</strong> videos approved for campaign (${Math.round((approved/total)*100)}% success rate)</p>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6>✅ Approved Videos:</h6>
+                        <ul class="small">
+                            <li>High milk content detected</li>
+                            <li>Campaign hashtags verified</li>
+                            <li>Brand-safe content</li>
+                            <li>Good engagement potential</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>❌ Rejected Videos:</h6>
+                        <ul class="small">
+                            <li>Low/no milk content</li>
+                            <li>Misleading hashtags</li>
+                            <li>Brand safety concerns</li>
+                            <li>Low quality content</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="small text-muted mt-2">
+                    Analysis included: milk detection, scene understanding, brand safety, campaign relevance
+                </div>
+            `;
+            summaryElement.style.display = 'block';
+
+            setTimeout(() => {
+                summaryElement.style.display = 'none';
+            }, 15000);
+
+            showToast(
+                'Processing Complete!', 
+                `${approved} videos approved, ${rejected} rejected`, 
+                'success'
+            );
+        }
+
+        function resetProcessButton() {
+            const button = document.getElementById('processBtn');
+            const buttonText = document.getElementById('btnText');
+            const progressBar = document.getElementById('processProgress');
+            
+            isProcessing = false;
+            button.disabled = false;
+            buttonText.textContent = '🚀 Process Queue with Twelve Labs';
+            progressBar.style.width = '0%';
+        }
+
+        function clearProcessed() {
+            const processed = processedVideos.filter(v => v.status === 'approved' || v.status === 'rejected');
+            
+            if (processed.length === 0) {
+                showToast('Nothing to Clear', 'No processed videos to remove', 'info');
+                return;
+            }
+
+            processedVideos = processedVideos.filter(v => v.status === 'queued' || v.status === 'processing');
+            renderVideoQueue();
+            updateMetrics();
+            
+            showToast('Queue Cleared', `Removed ${processed.length} processed videos`, 'success');
+        }
+
+        function retryFailed() {
+            const failed = processedVideos.filter(v => v.status === 'rejected');
+            
+            if (failed.length === 0) {
+                showToast('No Failed Videos', 'No rejected videos to retry', 'info');
+                return;
+            }
+
+            failed.forEach(video => {
+                video.status = 'queued';
+                video.confidence = 0;
+            });
+            
+            renderVideoQueue();
+            updateMetrics();
+            
+            showToast('Retry Queued', `${failed.length} videos added back to queue`, 'success');
+        }
+
+        function simulateNewVideo() {
+            const sampleVideos = [
+                {
+                    title: "Quick milk break during workout",
+                    user: "GymRat",
+                    avatar: "G",
+                    hashtags: ["#gotmilk", "#workout", "#protein"]
+                },
+                {
+                    title: "Coffee with milk latte art",
+                    user: "CoffeeLover",
+                    avatar: "C",
+                    hashtags: ["#gotmilk", "#coffee", "#latteart"]
+                },
+                {
+                    title: "Kids love their morning milk!",
+                    user: "MomLife",
+                    avatar: "M",
+                    hashtags: ["#gotmilk", "#kids", "#family"]
+                },
+                {
+                    title: "Chocolate milk post-workout fuel",
+                    user: "FitnessQueen",
+                    avatar: "F",
+                    hashtags: ["#gotmilk", "#fitness", "#recovery"]
+                }
+            ];
+
+            const randomVideo = sampleVideos[Math.floor(Math.random() * sampleVideos.length)];
+            const newVideo = {
+                id: Date.now(),
+                title: randomVideo.title,
+                user: randomVideo.user,
+                avatar: randomVideo.avatar,
+                views: Math.floor(Math.random() * 100) + "K",
+                time: "Just now",
+                duration: "0:" + Math.floor(Math.random() * 40 + 10),
+                hashtags: randomVideo.hashtags,
+                status: "queued",
+                confidence: 0
+            };
+
+            processedVideos.unshift(newVideo);
+            renderVideoQueue();
+            updateMetrics();
+            
+            showToast('New Video Added', `"${newVideo.title}" added to queue`, 'info');
+        }
+
+        function refreshQueue() {
+            // Simulate fetching fresh data from API
+            showToast('Queue Refreshed', 'Fetched latest queue data', 'info');
+            renderVideoQueue();
+            updateMetrics();
+        }
+
+        function showContextMenu(event, video) {
+            // Remove existing context menu
+            const existingMenu = document.querySelector('.context-menu');
+            if (existingMenu) {
+                existingMenu.remove();
+            }
+
+            const menu = document.createElement('div');
+            menu.className = 'context-menu';
+            menu.style.top = `${event.clientY}px`;
+            menu.style.left = `${event.clientX}px`;
+
+            const menuItems = [
+                { 
+                    label: '👁️ View Details', 
+                    action: () => showVideoDetails(video) 
+                },
+                { 
+                    label: '✅ Force Approve', 
+                    action: () => forceApprove(video), 
+                    condition: video.status !== 'approved' 
+                },
+                { 
+                    label: '❌ Force Reject', 
+                    action: () => forceReject(video), 
+                    condition: video.status !== 'rejected' 
+                },
+                { 
+                    label: '🔄 Reset to Queue', 
+                    action: () => resetToQueue(video), 
+                    condition: video.status !== 'queued' 
+                },
+                { 
+                    label: '🗑️ Remove from Queue', 
+                    action: () => removeFromQueue(video) 
+                }
+            ];
+
+            menuItems.forEach(item => {
+                if (item.condition === false) return;
+                
+                const menuItem = document.createElement('div');
+                menuItem.className = 'context-menu-item';
+                menuItem.textContent = item.label;
+                menuItem.addEventListener('click', () => {
+                    item.action();
+                    menu.remove();
+                });
+                
+                menu.appendChild(menuItem);
+            });
+
+            document.body.appendChild(menu);
+
+            // Remove menu when clicking elsewhere
+            setTimeout(() => {
+                document.addEventListener('click', function removeMenu() {
+                    if (menu.parentNode) {
+                        menu.remove();
+                    }
+                    document.removeEventListener('click', removeMenu);
+                });
+            }, 100);
+        }
+
+        function showVideoDetails(video) {
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">📹 Video Analysis Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="video-thumbnail" style="width: 100%; height: 150px;">
+                                        <div class="play-button" style="width: 50px; height: 50px; font-size: 16px;">▶</div>
+                                        <div class="video-duration">${video.duration}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    <h6>${video.title}</h6>
+                                    <p><strong>Creator:</strong> ${video.user}</p>
+                                    <p><strong>Views:</strong> ${video.views} | <strong>Posted:</strong> ${video.time}</p>
+                                    <p><strong>Status:</strong> <span class="badge bg-secondary">${video.status}</span></p>
+                                    ${video.confidence > 0 ? `<p><strong>Campaign Confidence:</strong> ${Math.round(video.confidence * 100)}%</p>` : ''}
+                                    <p><strong>Hashtags:</strong></p>
+                                    <div class="mb-3">
+                                        ${video.hashtags.map(tag => {
+                                            const isCampaign = ['#gotmilk', '#milkmob', '#dairylove'].includes(tag.toLowerCase());
+                                            return `<span class="hashtag ${isCampaign ? 'campaign-tag' : ''}" style="margin: 2px;">${tag}</span>`;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            ${video.status !== 'queued' ? `
+                                <hr>
+                                <h6>🔬 Analysis Results</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="small">Content Detection:</h6>
+                                        <ul class="small">
+                                            <li>✅ Milk content detected</li>
+                                            <li>✅ Person drinking/holding milk</li>
+                                            <li>✅ Kitchen/dining environment</li>
+                                            <li>✅ Campaign hashtags verified</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="small">Brand Safety:</h6>
+                                        <ul class="small">
+                                            <li>✅ No inappropriate content</li>
+                                            <li>✅ Family-friendly rating</li>
+                                            <li>✅ Positive sentiment</li>
+                                            <li>✅ Authentic user-generated content</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            ${video.status === 'queued' ? `<button type="button" class="btn btn-primary" onclick="processVideo(${video.id})">Process This Video</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+            
+            modal.addEventListener('hidden.bs.modal', () => {
+                modal.remove();
+            });
+        }
+
+        function forceApprove(video) {
+            video.status = 'approved';
+            video.confidence = 0.95;
+            updateVideoCard(video);
+            updateMetrics();
+            showToast('Video Approved', `"${video.title}" marked as approved`, 'success');
+        }
+
+        function forceReject(video) {
+            video.status = 'rejected';
+            video.confidence = 0.15;
+            updateVideoCard(video);
+            updateMetrics();
+            showToast('Video Rejected', `"${video.title}" marked as rejected`, 'warning');
+        }
+
+        function resetToQueue(video) {
+            video.status = 'queued';
+            video.confidence = 0;
+            updateVideoCard(video);
+            updateMetrics();
+            showToast('Video Queued', `"${video.title}" reset to queue`, 'info');
+        }
+
+        function removeFromQueue(video) {
+            if (confirm(`Remove "${video.title}" from queue?`)) {
+                processedVideos = processedVideos.filter(v => v.id !== video.id);
+                renderVideoQueue();
+                updateMetrics();
+                showToast('Video Removed', `"${video.title}" removed from queue`, 'warning');
+            }
+        }
+
+        function initializeChart() {
+            const ctx = document.getElementById('processingChart').getContext('2d');
+            
+            processingChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Queued', 'Processing', 'Approved', 'Rejected'],
+                    datasets: [{
+                        data: [8, 0, 0, 0],
+                        backgroundColor: ['#fbbf24', '#3b82f6', '#22c55e', '#ef4444'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function showToast(title, message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white bg-${type} border-0`;
+            toast.setAttribute('role', 'alert');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <strong>${title}</strong><br>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+            
+            toast.addEventListener('hidden.bs.toast', () => {
+                toast.remove();
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'p':
+                        e.preventDefault();
+                        if (!isProcessing) startProcessing();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        refreshQueue();
+                        break;
+                    case 'n':
+                        e.preventDefault();
+                        simulateNewVideo();
+                        break;
+                }
+            }
+        });
+
+        // Auto-refresh simulation
+        setInterval(() => {
+            if (Math.random() > 0.8) { // 20% chance
+                simulateNewVideo();
+            }
+        }, 30000); // Every 30 seconds
+
+        // Initialize tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+
+        // Enhanced error handling
+        window.addEventListener('error', function(e) {
+            console.error('Queue page error:', e.error);
+            showToast('Error', 'Something went wrong. Please refresh the page.', 'danger');
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (processingChart) {
+                processingChart.destroy();
+            }
+        });
+    </script>
+</body>
+</html>

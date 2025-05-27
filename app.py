@@ -1,4 +1,3 @@
-# app.py - Complete version with social feed, enhanced mob system and smart URL validation
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import os
 import sys
@@ -11,12 +10,12 @@ from urllib.parse import urlparse
 import re
 from typing import Dict, Any
 
-# Add src directory to Python path
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.config import Config
 
-# Try to import Twelve Labs components, but don't fail if they're not available
+
 try:
     from src.api.twelve_labs import TwelveLabsAPI
     from src.services.video_validator import VideoValidator
@@ -29,12 +28,12 @@ except ImportError as e:
 
 app = Flask(__name__)
 
-# Initialize configuration
+
 config = Config()
 app.config['UPLOAD_FOLDER'] = config.UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 
-# Initialize Twelve Labs API and services
+
 twelve_labs_api = None
 video_validator = None
 
@@ -48,10 +47,10 @@ if TWELVE_LABS_AVAILABLE:
         twelve_labs_api = None
         video_validator = None
 
-# Create upload folder if it doesn't exist
+
 os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
 
-# Mock database for storing mob memberships
+
 MOB_VIDEOS = {
     'mob001': [  # Extreme Milk
         {'title': 'Skateboarding while drinking milk challenge!', 'user': 'SkaterMike23', 'duration': 23, 'confidence': 0.89},
@@ -149,7 +148,7 @@ def smart_validate_video_url(url: str, hashtags: str) -> Dict[str, Any]:
     content_score = 0.0  # Track content-based scoring (80% weight)
     hashtag_score = 0.0  # Track hashtag-based scoring (20% weight)
     
-    # Try to get video metadata first (this is the main validation)
+  
     video_info = {}
     try:
         import yt_dlp
@@ -164,7 +163,7 @@ def smart_validate_video_url(url: str, hashtags: str) -> Dict[str, Any]:
             
     except Exception as e:
         print(f"⚠️ Could not extract video info: {e}")
-        # If we can't get video info, we can't properly validate content
+    
         return {
             "is_valid": False,
             "confidence": 0.0,

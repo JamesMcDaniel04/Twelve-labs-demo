@@ -115,6 +115,9 @@ from urllib.parse import urlparse
 import re
 from typing import Dict, Any
 
+# Set up Google Cloud authentication
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = "/Users/jamesmcdaniel/Downloads/kinetic-primer-461205-v8-d9bf26abe17e.json"
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.config import Config
@@ -295,9 +298,9 @@ def clean_video_url(url: str) -> str:
 
 
 def upload_file_to_cloud_and_process(file_path: str, hashtags: str) -> Dict[str, Any]:
-    """
-    Enhanced processing for uploaded files - supports both Twelve Labs direct upload and cloud storage
-    """
+    
+    ##Enhanced processing for uploaded files - supports both Twelve Labs direct upload and cloud storage
+    
     
     print(f"🔄 Enhanced processing for uploaded file: {file_path}")
     
@@ -337,55 +340,32 @@ def upload_file_to_cloud_and_process(file_path: str, hashtags: str) -> Dict[str,
 
 
 def upload_to_cloud_storage(file_path: str) -> str:
-    """
-    Upload file to cloud storage and return public URL
-    This is a placeholder - implement with your preferred cloud service
-    """
-    
-    # Example with AWS S3 (requires boto3 and AWS credentials)
-    """
-    import boto3
-    
-    s3_client = boto3.client('s3')
-    bucket_name = 'your-video-bucket'
-    key = f'uploads/{os.path.basename(file_path)}'
-    
-    try:
-        s3_client.upload_file(file_path, bucket_name, key)
-        url = f'https://{bucket_name}.s3.amazonaws.com/{key}'
-        return url
-    except Exception as e:
-        print(f"S3 upload failed: {e}")
-        return None
-    """
+   ## Upload file to cloud storage and return public URL
+    ##This is a placeholder - implement with your preferred cloud service
     
     # Example with Google Cloud Storage (requires google-cloud-storage)
-    """
+    
     from google.cloud import storage
     
     client = storage.Client()
-    bucket = client.bucket('your-video-bucket')
+    bucket = client.bucket('floor23')
     blob = bucket.blob(f'uploads/{os.path.basename(file_path)}')
     
     try:
         blob.upload_from_filename(file_path)
-        blob.make_public()
         return blob.public_url
     except Exception as e:
         print(f"GCS upload failed: {e}")
         return None
-    """
+    
     
     # Placeholder return
-    print("   💡 Cloud storage not configured - using local file validation")
-    return None
-
 
 def twelve_labs_validate_video_file(file_path: str, hashtags: str) -> Dict[str, Any]:
-    """
-    Validate video file using Twelve Labs API - direct file upload
-    This is the NEW function for handling local file uploads
-    """
+    
+    ##Validate video file using Twelve Labs API - direct file upload
+    ##This is the NEW function for handling local file uploads
+    
     if not twelve_labs_client:
         print("❌ Twelve Labs client not available, using fallback")
         return simple_validate_video_fallback(file_path, hashtags)

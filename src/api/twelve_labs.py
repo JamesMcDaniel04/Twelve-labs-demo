@@ -1,4 +1,3 @@
-# src/api/twelve_labs.py - FIXED VERSION
 import requests
 import json
 import time
@@ -79,7 +78,7 @@ class TwelveLabsAPI:
         return self.create_index()
     
     def upload_video(self, video_path: str, metadata: Dict = None) -> str:
-        """Upload a video for analysis"""
+        """Upload a video file for analysis"""
         if not self.index_id:
             self.get_or_create_index()
             
@@ -119,6 +118,42 @@ class TwelveLabsAPI:
                     
         except Exception as e:
             print(f"❌ Error uploading video: {e}")
+            return None
+    
+    def upload_video_url(self, video_url: str, metadata: Dict = None) -> str:
+        """Upload a video from URL for analysis"""
+        if not self.index_id:
+            self.get_or_create_index()
+            
+        if not self.index_id:
+            print("❌ No index available for upload")
+            return None
+            
+        url = f"{self.base_url}/tasks"
+        
+        payload = {
+            "index_id": self.index_id,
+            "language": "en",
+            "url": video_url  # This is the key difference - using URL instead of file
+        }
+        
+        # Add metadata if provided
+        if metadata:
+            payload["metadata"] = metadata
+        
+        try:
+            response = requests.post(url, headers=self.headers, json=payload)
+            
+            if response.status_code == 201:
+                task_id = response.json()["_id"]
+                print(f"📤 Video URL upload started. Task ID: {task_id}")
+                return task_id
+            else:
+                print(f"❌ URL upload failed: {response.text}")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Error uploading video URL: {e}")
             return None
     
     def check_task_status(self, task_id: str) -> Dict[str, Any]:
@@ -187,8 +222,8 @@ class TwelveLabsAPI:
             return []
     
     def analyze_milk_content(self, video_path: str) -> Dict[str, Any]:
-        """Analyze video for milk-related content"""
-        print(f"🔍 Analyzing video: {os.path.basename(video_path)}")
+        """Analyze video file for milk-related content"""
+        print(f"🔍 Analyzing video file: {os.path.basename(video_path)}")
         
         try:
             # Upload video
@@ -207,45 +242,85 @@ class TwelveLabsAPI:
             if not video_id:
                 return {"error": "Could not get video ID"}
             
-            # Search for milk-related content
-            milk_queries = [
-                "person drinking milk",
-                "glass of milk", 
-                "milk container",
-                "pouring milk",
-                "milk mustache"
-            ]
-            
-            results = {}
-            total_confidence = 0
-            
-            for query in milk_queries:
-                search_results = self.search_videos(query)
-                
-                # Find matches for our specific video
-                video_matches = [r for r in search_results if r.get('video_id') == video_id]
-                
-                if video_matches:
-                    # Get highest confidence score
-                    confidence = max([match.get('confidence', 0) for match in video_matches])
-                    results[query] = {
-                        'confidence': confidence,
-                        'matches': len(video_matches)
-                    }
-                    total_confidence += confidence
-                else:
-                    results[query] = {'confidence': 0, 'matches': 0}
-            
-            # Calculate overall milk content score
-            milk_score = total_confidence / len(milk_queries) if milk_queries else 0
-            
-            return {
-                "video_id": video_id,
-                "milk_score": milk_score,
-                "detailed_results": results,
-                "is_milk_related": milk_score > 0.3  # Threshold for milk content
-            }
+            # Perform milk content analysis
+            return self._perform_milk_analysis(video_id)
             
         except Exception as e:
             print(f"❌ Analysis error: {e}")
             return {"error": str(e)}
+    
+    def analyze_milk_content_url(self, video_url: str) -> Dict[str, Any]:
+        """Analyze video from URL for milk-related content"""
+        print(f"🔍 Analyzing video URL: {video_url}")
+        
+        try:
+            # Upload video from URL
+            task_id = self.upload_video_url(video_url)
+            if not task_id:
+                return {"error": "Failed to upload video from URL"}
+            
+            # Wait for processing
+            if not self.wait_for_processing(task_id):
+                return {"error": "Video processing failed or timed out"}
+            
+            # Get video ID from task
+            task_info = self.check_task_status(task_id)
+            video_id = task_info.get('video_id')
+            
+            if not video_id:
+                return {"error": "Could not get video ID"}
+            
+            # Perform milk content analysis
+            return self._perform_milk_analysis(video_id)
+            
+        except Exception as e:
+            print(f"❌ Analysis error: {e}")
+            return {"error": str(e)}
+    
+    def _perform_milk_analysis(self, video_id: str) -> Dict[str, Any]:
+        """Perform milk content analysis on a processed video"""
+        # Search for milk-related content
+        milk_queries = [
+            "person drinking milk",
+            "glass of milk", 
+            "milk container",
+            "pouring milk",
+            "milk mustache",
+            "dairy product",
+            "white liquid in glass",
+            "person drinking white beverage"
+        ]
+        
+        results = {}
+        total_confidence = 0
+        
+        for query in milk_queries:
+            search_results = self.search_videos(query)
+            
+            # Find matches for our specific video
+            video_matches = [r for r in search_results if r.get('video_id') == video_id]
+            
+            if video_matches:
+                # Get highest confidence score
+                confidence = max([match.get('confidence', 0) for match in video_matches])
+                results[query] = {
+                    'confidence': confidence,
+                    'matches': len(video_matches)
+                }
+                total_confidence += confidence
+                print(f"   ✅ '{query}': {confidence:.3f} confidence ({len(video_matches)} matches)")
+            else:
+                results[query] = {'confidence': 0, 'matches': 0}
+                print(f"   ❌ '{query}': No matches")
+        
+        # Calculate overall milk content score
+        milk_score = total_confidence / len(milk_queries) if milk_queries else 0
+        
+        print(f"🥛 Overall milk score: {milk_score:.3f}")
+        
+        return {
+            "video_id": video_id,
+            "milk_score": milk_score,
+            "detailed_results": results,
+            "is_milk_related": milk_score > 0.3  # Threshold for milk content
+        }
